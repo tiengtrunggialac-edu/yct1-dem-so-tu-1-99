@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>跳数字 – Đọc số tiếng Trung</title>
+<style>
+  :root { --green:#159b75; --dark:#145b4b; --gold:#ffbd45; --pink:#ff7d9c; }
+  * { box-sizing:border-box }
+  body {
+    margin:0; min-height:100vh; font-family: "Arial", sans-serif;
+    background:linear-gradient(135deg,#e6fff5,#eaf3ff 55%,#fff3e2);
+    color:#173b35; display:flex; justify-content:center; align-items:center; padding:22px;
+  }
+  .game { width:min(900px,100%); text-align:center; background:#ffffffeb; border:3px solid #d4f2e6;
+    border-radius:30px; padding:clamp(20px,4vw,42px); box-shadow:0 18px 55px #225b4b20; }
+  .eyebrow { color:var(--green); font-weight:800; letter-spacing:3px; font-size:14px }
+  h1 { margin:8px 0 4px; font-size:clamp(30px,5vw,48px); color:var(--dark) }
+  .sub { margin:0 0 25px; color:#66827b; font-size:16px }
+  .stage { position:relative; overflow:hidden; min-height:265px; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(180deg,#f2fffa,#e7f4ff); border:2px dashed #b8e6d4; border-radius:24px; margin:20px 0; }
+  .number { font-size:clamp(92px,18vw,150px); font-weight:900; color:#167e65; text-shadow:0 5px 0 #c6f0df; line-height:1; }
+  .number.jump { animation:jump .65s cubic-bezier(.2,.8,.3,1); }
+  @keyframes jump { 0%{transform:translateY(90px) scale(.65);opacity:0} 55%{transform:translateY(-18px) scale(1.08);opacity:1} 78%{transform:translateY(7px) scale(.97)} 100%{transform:translateY(0) scale(1)} }
+  .spark { position:absolute; font-size:28px; animation:float 2.5s ease-in-out infinite; opacity:.75 }
+  .s1{left:9%;top:18%}.s2{right:10%;top:22%;animation-delay:.5s}.s3{left:17%;bottom:15%;animation-delay:1s}.s4{right:17%;bottom:13%;animation-delay:1.4s}
+  @keyframes float { 50%{transform:translateY(-13px) rotate(12deg)} }
+  .answer { min-height:62px; margin:8px 0 18px; font-size:clamp(22px,4vw,34px); font-weight:800; color:#e17b35; }
+  .answer small { display:block; font-size:15px; color:#7c918b; font-weight:600; margin-top:5px }
+  .hidden { visibility:hidden }
+  .controls { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin:15px 0 }
+  button { border:0; border-radius:15px; padding:14px 23px; font-size:17px; font-weight:800; cursor:pointer; transition:.15s; box-shadow:0 5px 0 #00000012; }
+  button:hover { transform:translateY(-2px); filter:brightness(1.03) }
+  button:active { transform:translateY(2px); box-shadow:none }
+  .primary { background:var(--green); color:white; min-width:190px }
+  .secondary { background:#fff0c9; color:#855719 }
+  .blue { background:#e3efff; color:#315e9c }
+  .stats { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:20px }
+  .stat { background:#f1faf6; border-radius:14px; padding:10px 18px; min-width:125px; color:#66827b; font-size:14px }
+  .stat b { display:block; font-size:23px; color:#176d58; margin-top:3px }
+  .hint { font-size:13px; color:#82958f; margin-top:20px }
+  .progress { height:8px; background:#e8f2ef; border-radius:20px; overflow:hidden; margin:18px auto 0; max-width:430px }
+  .bar { height:100%; width:0%; background:linear-gradient(90deg,#20b486,#83d7a9); transition:width .3s }
+  @media(max-width:520px){ .stage{min-height:220px} button{flex:1 1 42%;padding:13px 10px} .primary{flex-basis:100%} }
+</style>
+</head>
+<body>
+<main class="game">
+  <div class="eyebrow">中文数字挑战 · YCT</div>
+  <h1>跳数字！</h1>
+  <p class="sub">Nhìn số xuất hiện và đọc to bằng tiếng Trung nhé!</p>
+
+  <div class="stage" aria-live="polite">
+    <span class="spark s1">⭐</span><span class="spark s2">🎈</span>
+    <span class="spark s3">✨</span><span class="spark s4">🌸</span>
+    <div class="number" id="number">?</div>
+  </div>
+
+  <div class="answer hidden" id="answer">
+    <span id="hanzi"></span>
+    <small id="pinyin"></small>
+  </div>
+
+  <div class="controls">
+    <button class="primary" id="next">🎲 SỐ TIẾP THEO</button>
+    <button class="secondary" id="show">👀 Hiện đáp án</button>
+    <button class="blue" id="speak">🔊 Nghe phát âm</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat">Đã luyện tập<b id="count">0</b></div>
+    <div class="stat">Số hiện tại<b id="current">—</b></div>
+    <div class="stat">Phạm vi<b>1 – 99</b></div>
+  </div>
+  <div class="progress"><div class="bar" id="bar"></div></div>
+  <p class="hint">Mẹo: Hãy đọc số trước khi bấm “Hiện đáp án”. Mỗi lượt sẽ chọn một số ngẫu nhiên.</p>
+</main>
+<script>
+const digits = ["零","一","二","三","四","五","六","七","八","九"];
+const digitPy = ["líng","yī","èr","sān","sì","wǔ","liù","qī","bā","jiǔ"];
+function chinese(n) {
+  if (n < 10) return digits[n];
+  const tens = Math.floor(n / 10), ones = n % 10;
+  if (tens === 1) return "十" + (ones ? digits[ones] : "");
+  return digits[tens] + "十" + (ones ? digits[ones] : "");
+}
+function pinyin(n) {
+  if (n < 10) return digitPy[n];
+  const tens = Math.floor(n / 10), ones = n % 10;
+  if (tens === 1) return "shí" + (ones ? " " + digitPy[ones] : "");
+  return digitPy[tens] + " shí" + (ones ? " " + digitPy[ones] : "");
+}
+let current = null, count = 0, shown = false;
+const numberEl = document.getElementById("number");
+const answerEl = document.getElementById("answer");
+function nextNumber() {
+  let n;
+  do { n = Math.floor(Math.random() * 99) + 1; } while (n === current);
+  current = n; count++; shown = false;
+  numberEl.textContent = n;
+  numberEl.classList.remove("jump"); void numberEl.offsetWidth; numberEl.classList.add("jump");
+  answerEl.classList.add("hidden");
+  document.getElementById("hanzi").textContent = chinese(n);
+  document.getElementById("pinyin").textContent = pinyin(n);
+  document.getElementById("count").textContent = count;
+  document.getElementById("current").textContent = n;
+  document.getElementById("bar").style.width = (count % 10) * 10 + "%";
+}
+document.getElementById("next").addEventListener("click", nextNumber);
+document.getElementById("show").addEventListener("click", () => {
+  if (current === null) nextNumber();
+  shown = !shown;
+  answerEl.classList.toggle("hidden", !shown);
+  document.getElementById("show").textContent = shown ? "🙈 Ẩn đáp án" : "👀 Hiện đáp án";
+});
+document.getElementById("speak").addEventListener("click", () => {
+  if (current === null) return nextNumber();
+  if (!("speechSynthesis" in window)) { alert("Trình duyệt chưa hỗ trợ đọc văn bản."); return; }
+  speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(chinese(current));
+  utterance.lang = "zh-CN"; utterance.rate = 0.8;
+  speechSynthesis.speak(utterance);
+});
+nextNumber();
+</script>
+</body>
+</html>
